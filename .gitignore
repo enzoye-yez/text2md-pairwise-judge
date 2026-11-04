@@ -1,0 +1,5 @@
+*.jsonl
+!examples/*.jsonl
+__pycache__/
+.env
+*.env
