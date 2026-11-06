@@ -1,0 +1,9 @@
+# versions of the environment the pivot8_r1 run used
+torch==2.13.0
+trl==1.17.1
+transformers==5.15.1
+vllm==0.28.0
+deepspeed==0.19.9
+accelerate==1.15.0
+datasets==5.1.0
+httpx

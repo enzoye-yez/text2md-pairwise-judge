@@ -46,3 +46,12 @@ Runs are resumable (pairs already in the output file are skipped). Cost ≈ $0.0
   more detailed style; on Gemini-vs-Sol it cannot reach 70% precision. Use it on pairs from the same model.
 - Longer / stricter prompt variants (v2–v4) only rescale the probabilities; at equal coverage they rank no better than v1b.
 - The ~600-token system prompt is below the 1,024-token prompt-cache minimum, so it is not cached.
+
+## Repository layout
+
+| Path | What |
+|---|---|
+| `pairwise_judge.py`, `judge_pairs.py`, `evaluate.py` | The terra v1b pairwise judge, a CLI to judge pairs, and coverage / precision against labels |
+| [`grpo/`](grpo/README.md) | GRPO training of the 4B text2md model with this judge as reward (pivot comparison), run script, checkpoint export |
+| `eval/ckpt_vs_sft.py` | md-only checkpoint evaluation: checkpoint vs SFT with terra v1b, both A/B orders |
+| `eval/prism_score.py` | PRISM scoring of rendered images with per-request alignment tracks (`prism_tracks.py`, `prism_prompts_en.md`), 3 rounds |
