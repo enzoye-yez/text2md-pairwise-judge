@@ -23,7 +23,7 @@ no pair → roll 8 more (16 total) and repeat → still none: the prompt is drop
 2. **luna prior (`luna_checks.py`):** one `gpt-6-luna` Decisions call per md with five questions (text copied wrongly,
    not ending properly, too thin, clear aesthetic mistake, inconsistent with the request), each none / minor / major.
    prior = sum of P(major). luna **only orders** the candidate pairs; it does not decide or veto.
-3. **terra decides (`../pairwise_judge.py`, prompt `v1b.1`):** both A/B orders on the Batch API. First order for up to 3
+3. **terra decides (`../pairwise_judge.py`, prompt `v1b.1` for the 2026-11-07 run; set `PROMPT = "v1b"` in `pick_batch.py` to use the repository default):** both A/B orders on the Batch API. First order for up to 3
    candidate pairs per prompt; if |margin| ≥ 0.6 the second order is asked; the pair is kept when the mean
    |margin| ≥ 0.8 and the winner is not a hard negative. The direction is terra's (the winner may be either md).
    Confidence of a kept pair = mean |margin|.

@@ -3,12 +3,16 @@
 Given one user request and two text2md Markdown briefs for it, predict which brief will give the better final image
 (text2md md → Text2JSON → J2I), without rendering. Used to pick DPO pairs for the 4B text2md model.
 
+> **Default prompt: v1b.** `pairwise_judge.py` (`SYSTEM`, `run()`, `request_body()`), `judge_pairs.py`, `grpo/` and
+> `eval/` all use v1b unless you pass `version="v1b.1"` / `--prompt v1b.1`. v1b.1 is kept only to reproduce the
+> 2026-11-07 `dpo_pick` run, which used it (`dpo_pick/pick_batch.py`, `PROMPT = "v1b.1"`).
+
 ## What is in here, and which version is current
 
 | Version | Where | Used for |
 |---|---|---|
-| **v1b** | `pairwise_judge.py` (`SYSTEM`, `PROMPTS["v1b"]`, the default) | r45k DPO data (epochs 1–3), GRPO reward (`grpo/`), `eval/ckpt_vs_sft.py` |
-| **v1b.1** = v1b + one sentence | `pairwise_judge.py` (`PROMPTS["v1b.1"]`, `--prompt v1b.1`) | everything since 2026-11-06: the 27B threshold study and **the current DPO pair picking (`dpo_pick/`)** |
+| **v1b (default)** | `pairwise_judge.py` (`SYSTEM`, `PROMPTS["v1b"]`) | r45k DPO data (epochs 1–3), GRPO reward (`grpo/`), `eval/ckpt_vs_sft.py` |
+| v1b.1 = v1b + one sentence (opt-in) | `pairwise_judge.py` (`PROMPTS["v1b.1"]`, `--prompt v1b.1`) | the 27B threshold study and the 2026-11-07 `dpo_pick` run (both from 2026-11-06 on) |
 | **dpo_pick** (latest) | [`dpo_pick/`](dpo_pick/README.md) | one pair per prompt from 8–16 4B rollouts: luna (5 checks, one Decisions call per md) ranks candidate pairs, terra v1b.1 on the Batch API decides (both orders, mean \|margin\| ≥ 0.8). The 2026-11-07 run on the 4B SFT model gave 7,784 pairs from 24k prompts (topping up to 10k) |
 
 The only difference between v1b and v1b.1 is in the photo / illustration item of `GUARD`, which in v1b.1 ends
