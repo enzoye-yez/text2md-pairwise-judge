@@ -13,7 +13,7 @@ Given one user request and two text2md Markdown briefs for it, predict which bri
 |---|---|---|
 | **v1b (default)** | `pairwise_judge.py` (`SYSTEM`, `PROMPTS["v1b"]`) | r45k DPO data (epochs 1–3), GRPO reward (`grpo/`), `eval/ckpt_vs_sft.py` |
 | v1b.1 = v1b + one sentence (opt-in) | `pairwise_judge.py` (`PROMPTS["v1b.1"]`, `--prompt v1b.1`) | the 27B threshold study and the 2026-11-07 `dpo_pick` run (both from 2026-11-06 on) |
-| **dpo_pick** (latest) | [`dpo_pick/`](dpo_pick/README.md) | one pair per prompt from 8–16 4B rollouts: luna (5 checks, one Decisions call per md) ranks candidate pairs, terra v1b.1 on the Batch API decides (both orders, mean \|margin\| ≥ 0.8). The 2026-11-07 run on the 4B SFT model gave 7,784 pairs from 24k prompts (topping up to 10k) |
+| **dpo_pick** (latest; full terra + luna prompts in [`dpo_pick/PROMPTS.md`](dpo_pick/PROMPTS.md)) | [`dpo_pick/`](dpo_pick/README.md) | one pair per prompt from 8–16 4B rollouts: luna (5 checks, one Decisions call per md) ranks candidate pairs, terra v1b.1 on the Batch API decides (both orders, mean \|margin\| ≥ 0.8). The 2026-11-07 run on the 4B SFT model gave 7,784 pairs from 24k prompts (topping up to 10k) |
 
 The only difference between v1b and v1b.1 is in the photo / illustration item of `GUARD`, which in v1b.1 ends
 "… Differences in wording, ordering or optional props are similar. **Two valid artistic interpretations of the same
