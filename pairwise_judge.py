@@ -46,7 +46,7 @@ SYSTEM = PREAMBLE + GUARD + "\n\n" + JSON_GUIDE
 _PHOTO_END = "Differences in wording, ordering or optional props are similar."
 GUARD_V1B1 = GUARD.replace(_PHOTO_END, _PHOTO_END + " Two valid artistic interpretations of the same request are similar. " + _PHOTO_END, 1)
 PROMPTS = {"v1b": SYSTEM, "v1b.1": PREAMBLE + GUARD_V1B1 + "\n\n" + JSON_GUIDE}
-TRANSIENT = {408, 409, 429, 500, 502, 503, 504}
+TRANSIENT = {408, 409, 429, 500, 502, 503, 504, 520, 522, 524}  # 52x: Cloudflare edge errors, transient
 
 
 def user_text(prompt, ar, a, b):

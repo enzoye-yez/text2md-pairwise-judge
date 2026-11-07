@@ -14,7 +14,7 @@ import httpx
 
 BASE = "https://api.openai.com/v1"
 MODEL = os.environ.get("LUNA_MODEL", "gpt-6-luna")
-TRANSIENT = {408, 409, 429, 500, 502, 503, 504}
+TRANSIENT = {408, 409, 429, 500, 502, 503, 504, 520, 522, 524}  # 52x: Cloudflare edge errors, transient
 
 PREAMBLE = """You check ONE Markdown design brief written for a user's image request. The brief is the only input to an image pipeline that draws exactly what the brief says; the pipeline never sees the request. You look for one kind of clear mistake only, described in the question. Ignore every other quality of the brief. Most briefs are fine: answer none unless the mistake is really there and you can point to it."""
 

@@ -108,9 +108,10 @@ class Work:
     def candidates(self, rnd):
         R, by = self.rollouts(rnd); L = self.luna(); T = self.terra(); done = self.picked()
         PRI, AL = self.helpers(R, L)
+        only = set(open(os.environ["PICK_ONLY"]).read().split()) if os.environ.get("PICK_ONLY") else None  # optional id list (re-runs)
         out = {}
         for i, ks in by.items():
-            if i in done or not all(k in PRI for k in ks):
+            if i in done or (only is not None and i not in only) or not all(k in PRI for k in ks):
                 continue
             clean = {k for k in ks if not AL[k]}
             pairs = sorted(((PRI[o] - PRI[c], c, o) for c in clean for o in ks if o != c and (o not in clean or (PRI[o], o) > (PRI[c], c))), reverse=True)
