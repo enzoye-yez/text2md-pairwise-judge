@@ -3,7 +3,12 @@
 Two Markdown design briefs (A, B) for the same request; the model answers strict JSON
 {reason, p_A_better, p_B_better, p_similar}. One call per pair: which md is shown as A is fixed by md5(pid) % 2, so
 position bias does not line up with any side. margin = P(y better) - P(x better) in [-1, 1]; |margin| is the confidence.
-Prompt text is the v1b prompt of the text2md_judge experiments, unchanged (PREAMBLE + GUARD, JSON_GUIDE).
+Prompt versions (PROMPTS):
+  v1b   PREAMBLE + GUARD + JSON_GUIDE. Used for the r45k DPO data (epochs 1-3) and as the GRPO reward (grpo/).
+  v1b.1 v1b with one sentence added to the photo/illustration item of GUARD (and the previous sentence repeated):
+        "Two valid artistic interpretations of the same request are similar." Used for everything from 2026-11-06 on:
+        the 27B threshold study and the one-pair-per-prompt DPO picking in dpo_pick/ (10k pairs, 2026-11-07).
+SYSTEM is v1b (the default everywhere); pass version="v1b.1" to reproduce dpo_pick.
 """
 import asyncio, hashlib, json, os, random, time
 import httpx
@@ -38,6 +43,9 @@ GUARD = """
 - Judge for a human viewer: do not favour a brief because it reads like a generic image-generation recipe (stacks of quality words such as cinematic, 8k, ultra-detailed, masterpiece). Concrete visual decisions matter; buzzwords do not."""
 
 SYSTEM = PREAMBLE + GUARD + "\n\n" + JSON_GUIDE
+_PHOTO_END = "Differences in wording, ordering or optional props are similar."
+GUARD_V1B1 = GUARD.replace(_PHOTO_END, _PHOTO_END + " Two valid artistic interpretations of the same request are similar. " + _PHOTO_END, 1)
+PROMPTS = {"v1b": SYSTEM, "v1b.1": PREAMBLE + GUARD_V1B1 + "\n\n" + JSON_GUIDE}
 TRANSIENT = {408, 409, 429, 500, 502, 503, 504}
 
 
@@ -60,27 +68,37 @@ def margin(probs, order):  # + means y is better
     return round(m if order == 0 else -m, 6)
 
 
-async def call(client, pair, headers, effort="low"):
+def request_body(prompt, ar, md_a, md_b, version="v1b", effort="low"):
+    """Responses API body for one comparison (md_a shown as Brief A); also used for Batch API request lines."""
+    return {"model": MODEL, "reasoning": {"effort": effort},
+            "input": [{"role": "developer", "content": PROMPTS[version]}, {"role": "user", "content": user_text(prompt, ar, md_a, md_b)}],
+            "text": {"format": {"type": "json_schema", "name": "pair", "strict": True, "schema": SCHEMA}}}
+
+
+def parse_body(body):
+    """Responses API body -> normalised {A_better, B_better, similar} and the reason."""
+    t = json.loads("".join(c.get("text", "") for o in body["output"] if o.get("type") == "message" for c in o["content"]))
+    return norm({"A_better": t["p_A_better"], "B_better": t["p_B_better"], "similar": t["p_similar"]}), t["reason"]
+
+
+async def call(client, pair, headers, effort="low", version="v1b"):
     order = order_of(pair["pid"])
     a, b = (pair["md_x"], pair["md_y"]) if order == 0 else (pair["md_y"], pair["md_x"])
-    payload = {"model": MODEL, "reasoning": {"effort": effort},
-               "input": [{"role": "developer", "content": SYSTEM}, {"role": "user", "content": user_text(pair["prompt"], pair.get("aspect_ratio"), a, b)}],
-               "text": {"format": {"type": "json_schema", "name": "pair", "strict": True, "schema": SCHEMA}}}
+    payload = request_body(pair["prompt"], pair.get("aspect_ratio"), a, b, version, effort)
     r = await client.post("https://api.openai.com/v1/responses", headers=headers, json=payload)
     if r.status_code != 200:
         return r.status_code, None
-    body = r.json(); t = json.loads("".join(c.get("text", "") for o in body["output"] if o.get("type") == "message" for c in o["content"]))
-    probs = norm({"A_better": t["p_A_better"], "B_better": t["p_B_better"], "similar": t["p_similar"]})
-    return 200, {"pid": pair["pid"], "order": order, "probs": probs, "margin": margin(probs, order), "reason": t["reason"],
-                 "usage": body.get("usage"), "model": body.get("model")}
+    body = r.json(); probs, reason = parse_body(body)
+    return 200, {"pid": pair["pid"], "order": order, "probs": probs, "margin": margin(probs, order), "reason": reason,
+                 "usage": body.get("usage"), "model": body.get("model"), "prompt_version": version}
 
 
-async def judge(client, sem, pair, headers, attempts=6):
+async def judge(client, sem, pair, headers, attempts=6, version="v1b"):
     err = None
     for att in range(attempts):
         async with sem:
             try:
-                code, res = await call(client, pair, headers)
+                code, res = await call(client, pair, headers, version=version)
                 if code == 200:
                     return res
                 err = f"http_{code}"
@@ -92,7 +110,7 @@ async def judge(client, sem, pair, headers, attempts=6):
     return {"pid": pair["pid"], "error": err}
 
 
-async def run(pairs, out_path, concurrency=24):
+async def run(pairs, out_path, concurrency=24, version="v1b"):
     """Judge every pair not already in out_path (resumable); appends one JSON row per pair."""
     done = {d["pid"] for d in map(json.loads, open(out_path)) if "error" not in d} if os.path.exists(out_path) else set()
     todo = [p for p in pairs if p["pid"] not in done]
@@ -100,7 +118,7 @@ async def run(pairs, out_path, concurrency=24):
     sem = asyncio.Semaphore(concurrency); t0 = time.time(); n = errs = 0
     async with httpx.AsyncClient(timeout=httpx.Timeout(300, connect=10)) as client:
         with open(out_path, "a") as f:
-            for fut in asyncio.as_completed([judge(client, sem, p, headers) for p in todo]):
+            for fut in asyncio.as_completed([judge(client, sem, p, headers, version=version) for p in todo]):
                 r = await fut; f.write(json.dumps(r, ensure_ascii=False) + "\n"); f.flush(); n += 1; errs += "error" in r
                 if n % 200 == 0 or n == len(todo):
                     print(f"{n}/{len(todo)} done, {errs} errors, {time.time() - t0:.0f}s", flush=True)
